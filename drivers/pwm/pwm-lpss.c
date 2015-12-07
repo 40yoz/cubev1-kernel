@@ -26,8 +26,7 @@
 #define PWM_BASE_UNIT_SHIFT		8
 #define PWM_BASE_UNIT_MASK		0x00ffff00
 #define PWM_ON_TIME_DIV_MASK		0x000000ff
-#define PWM_DIVISION_CORRECTION		0x2
-#define PWM_LIMIT			(0x8000 + PWM_DIVISION_CORRECTION)
+#define PWM_LIMIT			0x7fff
 #define NSECS_PER_SEC			1000000000UL
 
 /* Size of each PWM register space if multiple */
@@ -90,15 +89,14 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	do_div(freq, period_ns);
 
-	/* The equation is: base_unit = ((freq / c) * 65536) + correction */
-	base_unit = freq * 65536;
+	/* The equation is: base_unit = (round(freq / c) * 65536) */
+	freq *= 65536;
 
 	c = lpwm->clk_rate;
 	if (!c)
 		return -EINVAL;
 
-	do_div(base_unit, c);
-	base_unit += PWM_DIVISION_CORRECTION;
+	base_unit = DIV_ROUND_CLOSEST_ULL(freq, c);
 	if (base_unit > PWM_LIMIT)
 		return -EINVAL;
 
